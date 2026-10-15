@@ -7,6 +7,10 @@ on:
         description: 'Tag or branch to build'
         required: true
         default: '2.3.9'
+      timeout:
+        description: 'Video parse timeout in seconds'
+        required: true
+        default: '45'
 
 jobs:
   build-android-armv7:
@@ -27,6 +31,18 @@ jobs:
           sed -i 's#<category android:name="android.intent.category.LAUNCHER"/>#&\n                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>#' $M
           grep -q LEANBACK_LAUNCHER $M && grep -q 'android:banner' $M && grep -q 'android.software.leanback' $M
           head -45 $M
+      - name: Increase video parse timeout
+        run: |
+          F=lib/services/video_source/webview_video_source_service.dart
+          sed -i 's/Duration timeout = const Duration(seconds: 15)/Duration timeout = const Duration(seconds: ${{ inputs.timeout }})/' $F
+          grep -n "Duration(seconds: ${{ inputs.timeout }})" $F
+      - name: Install fixed signing key
+        env:
+          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+        run: |
+          mkdir -p ~/.android
+          echo "$SIGNING_KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+          test -s ~/.android/debug.keystore
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -44,6 +60,8 @@ jobs:
         run: sed -i -e 's/-Wl,/-Wl,--build-id=none,/' ${{ steps.flutter-action.outputs.PUB-CACHE-PATH }}/hosted/pub.dev/jni-*/src/CMakeLists.txt
       - name: Build armeabi-v7a APK
         run: flutter build apk --split-per-abi --target-platform android-arm
+      - name: Verify signing certificate
+        run: $(ls -d $ANDROID_HOME/build-tools/*/ | sort -V | tail -1)apksigner verify --print-certs build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk | tee /dev/stderr | grep -q "CN=Kazumi TV build"
       - name: Rename output
         run: cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk Kazumi_android_${{ inputs.ref }}_armeabi-v7a_tv.apk
       - name: Upload APK
