@@ -19,6 +19,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+      - name: Patch manifest for Android TV launcher
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#&\n    <uses-feature android:name="android.software.leanback" android:required="false"/>\n    <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>#' $M
+          sed -i 's#android:icon="@mipmap/ic_launcher"#&\n        android:banner="@mipmap/ic_launcher"#' $M
+          sed -i 's#<category android:name="android.intent.category.LAUNCHER"/>#&\n                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>#' $M
+          grep -q LEANBACK_LAUNCHER $M && grep -q 'android:banner' $M && grep -q 'android.software.leanback' $M
+          head -45 $M
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -37,9 +45,9 @@ jobs:
       - name: Build armeabi-v7a APK
         run: flutter build apk --split-per-abi --target-platform android-arm
       - name: Rename output
-        run: cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk Kazumi_android_${{ inputs.ref }}_armeabi-v7a.apk
+        run: cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk Kazumi_android_${{ inputs.ref }}_armeabi-v7a_tv.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Kazumi_android_armeabi-v7a
-          path: Kazumi_android_*_armeabi-v7a.apk
+          name: Kazumi_android_armeabi-v7a_tv
+          path: Kazumi_android_*_armeabi-v7a_tv.apk
