@@ -40,9 +40,12 @@ jobs:
         env:
           SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
         run: |
-          mkdir -p ~/.android
-          echo "$SIGNING_KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
-          test -s ~/.android/debug.keystore
+          echo "$SIGNING_KEYSTORE_B64" | base64 -d > android/app/kazumi-tv.p12
+          test -s android/app/kazumi-tv.p12
+          G=android/app/build.gradle
+          sed -i "s#^    buildTypes {#    signingConfigs {\n        kazumiTv {\n            storeFile file('kazumi-tv.p12')\n            storeType 'pkcs12'\n            storePassword 'android'\n            keyAlias 'androiddebugkey'\n            keyPassword 'android'\n        }\n    }\n\n&#" $G
+          sed -i 's#signingConfig signingConfigs.debug#signingConfig signingConfigs.kazumiTv#' $G
+          grep -n "kazumiTv" $G
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
